@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>子目錄列表工具</title>
+<title>目錄瀏覽工具</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap');
 
@@ -18,6 +18,7 @@
     --text: #e6edf3;
     --muted: #8b949e;
     --card: #1c2128;
+    --tab-active: #58a6ff;
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -48,7 +49,7 @@
     border: 1px solid var(--border);
     border-radius: 12px;
     width: 100%;
-    max-width: 760px;
+    max-width: 860px;
     overflow: hidden;
   }
 
@@ -80,15 +81,42 @@
     border-radius: 0 6px 6px 0;
   }
 
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab-btn {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    padding: 8px 18px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: -1px;
+    gap: 6px;
+  }
+  .tab-btn:hover { color: var(--text); }
+  .tab-btn.active { color: var(--tab-active); border-bottom-color: var(--tab-active); }
+
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* ── Buttons ── */
+  #folderInput { display: none; }
+
   .btn-row {
     display: flex;
     gap: 10px;
     margin-bottom: 16px;
     flex-wrap: wrap;
   }
-
-  /* 隱藏原生 file input */
-  #folderInput { display: none; }
 
   button {
     font-family: 'JetBrains Mono', monospace;
@@ -108,14 +136,14 @@
   #pickBtn { background: var(--accent); color: #0d1117; }
   #pickBtn:hover { background: #79c0ff; transform: translateY(-1px); }
 
-  #exportBtn {
+  .export-btn {
     background: var(--accent2);
     color: #0d1117;
     opacity: 0.35;
     pointer-events: none;
   }
-  #exportBtn.active { opacity: 1; pointer-events: all; }
-  #exportBtn.active:hover { background: #56d364; transform: translateY(-1px); }
+  .export-btn.active { opacity: 1; pointer-events: all; }
+  .export-btn.active:hover { background: #56d364; transform: translateY(-1px); }
 
   #clearBtn {
     background: transparent;
@@ -127,6 +155,28 @@
   #clearBtn.active { opacity: 1; pointer-events: all; }
   #clearBtn.active:hover { color: var(--text); border-color: var(--muted); }
 
+  /* ── Search ── */
+  .search-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .search-row input {
+    flex: 1;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-row input:focus { border-color: var(--accent); }
+  .search-row input::placeholder { color: var(--muted); }
+
+  /* ── Status ── */
   .status-bar {
     background: var(--card);
     border: 1px solid var(--border);
@@ -153,16 +203,18 @@
     white-space: nowrap;
   }
 
+  /* ── Results ── */
   .results-wrap {
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: 8px;
-    max-height: 400px;
+    max-height: 420px;
     overflow-y: auto;
   }
   .results-wrap::-webkit-scrollbar { width: 6px; }
   .results-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 
+  /* folder rows */
   .folder-item {
     display: flex;
     align-items: center;
@@ -176,7 +228,53 @@
   }
   .folder-item:last-child { border-bottom: none; }
   .folder-item .idx { color: var(--muted); min-width: 32px; font-size: 0.75rem; }
-  .folder-icon { color: var(--warn); }
+
+  /* file rows */
+  .file-item {
+    display: grid;
+    grid-template-columns: 36px 1fr 160px 80px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--text);
+    animation: fadeIn 0.15s ease both;
+  }
+  .file-item:last-child { border-bottom: none; }
+  .file-item .idx { color: var(--muted); font-size: 0.72rem; }
+  .file-item .path { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-item .path .dir-part { color: var(--muted); }
+  .file-item .size { color: var(--muted); text-align: right; }
+
+  /* ext badge */
+  .ext-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 5px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+    justify-self: end;
+  }
+
+  /* file list header */
+  .list-header {
+    display: grid;
+    grid-template-columns: 36px 1fr 160px 80px;
+    gap: 8px;
+    padding: 8px 14px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
 
   @keyframes fadeIn {
     from { opacity: 0; transform: translateX(-6px); }
@@ -198,35 +296,35 @@
     font-family: 'JetBrains Mono', monospace;
     text-align: right;
   }
+
+  mark { background: #f0883e44; color: var(--warn); border-radius: 2px; }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>📁 子目錄列表工具</h1>
-  <p>選取目錄，自動列出所有直屬子目錄名稱並匯出 folder_name.txt</p>
+  <h1>📁 目錄瀏覽工具</h1>
+  <p>選取目錄，列出子目錄 & 所有檔案（含遞迴子目錄），並可匯出 .txt</p>
 </div>
 
 <div class="card">
   <div class="card-header">
-    <div class="dot r"></div>
-    <div class="dot y"></div>
-    <div class="dot g"></div>
+    <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
     &nbsp;folder-lister.html
   </div>
   <div class="card-body">
 
     <div class="hint">
-      💡 點擊「選擇目錄」後，在彈出視窗中導覽到目標資料夾並選取它，瀏覽器會讀取其中所有子目錄。<br>
+      💡 點擊「選擇目錄」，在彈出視窗選取目標資料夾。<br>
       ⚠️ 僅限 Chrome / Edge — 不需安裝任何軟體。
     </div>
 
-    <!-- 隱藏的 input，使用 webkitdirectory -->
     <input type="file" id="folderInput" webkitdirectory multiple>
 
     <div class="btn-row">
       <button id="pickBtn">📂 選擇目錄</button>
-      <button id="exportBtn">💾 匯出 folder_name.txt</button>
+      <button class="export-btn" id="exportFoldersBtn">💾 匯出 folder_name.txt</button>
+      <button class="export-btn" id="exportFilesBtn">💾 匯出 file_list.txt</button>
       <button id="clearBtn">✕ 清除</button>
     </div>
 
@@ -234,95 +332,247 @@
       <span>等待選擇目錄…</span>
     </div>
 
-    <div class="results-wrap" id="resultsWrap">
-      <div class="empty-state">
-        <div class="icon">🗂️</div>
-        <div>尚未選擇目錄</div>
-      </div>
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tab-folders">📁 子目錄 <span id="folderCount"></span></button>
+      <button class="tab-btn" data-tab="tab-files">📄 所有檔案 <span id="fileCount"></span></button>
     </div>
 
-    <div class="footer" id="footer"></div>
+    <!-- Tab: Folders -->
+    <div class="tab-pane active" id="tab-folders">
+      <div class="results-wrap" id="foldersWrap">
+        <div class="empty-state"><div class="icon">🗂️</div><div>尚未選擇目錄</div></div>
+      </div>
+      <div class="footer" id="folderFooter"></div>
+    </div>
+
+    <!-- Tab: Files -->
+    <div class="tab-pane" id="tab-files">
+      <div class="search-row">
+        <input type="text" id="fileSearch" placeholder="搜尋檔名或路徑…">
+      </div>
+      <div class="results-wrap" id="filesWrap">
+        <div class="empty-state"><div class="icon">📄</div><div>尚未選擇目錄</div></div>
+      </div>
+      <div class="footer" id="fileFooter"></div>
+    </div>
+
   </div>
 </div>
 
 <script>
-  const folderInput  = document.getElementById('folderInput');
-  const pickBtn      = document.getElementById('pickBtn');
-  const exportBtn    = document.getElementById('exportBtn');
-  const clearBtn     = document.getElementById('clearBtn');
-  const statusBar    = document.getElementById('statusBar');
-  const resultsWrap  = document.getElementById('resultsWrap');
-  const footer       = document.getElementById('footer');
+  const folderInput       = document.getElementById('folderInput');
+  const pickBtn           = document.getElementById('pickBtn');
+  const exportFoldersBtn  = document.getElementById('exportFoldersBtn');
+  const exportFilesBtn    = document.getElementById('exportFilesBtn');
+  const clearBtn          = document.getElementById('clearBtn');
+  const statusBar         = document.getElementById('statusBar');
+  const foldersWrap       = document.getElementById('foldersWrap');
+  const filesWrap         = document.getElementById('filesWrap');
+  const folderFooter      = document.getElementById('folderFooter');
+  const fileFooter        = document.getElementById('fileFooter');
+  const folderCountEl     = document.getElementById('folderCount');
+  const fileCountEl       = document.getElementById('fileCount');
+  const fileSearch        = document.getElementById('fileSearch');
 
   let folderNames = [];
+  let allFiles    = [];  // [{path, name, dir, size, ext}]
 
+  // ── Tab switching ──
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  // ── Pick folder ──
   pickBtn.addEventListener('click', () => folderInput.click());
 
   folderInput.addEventListener('change', () => {
     const files = Array.from(folderInput.files);
     if (!files.length) return;
 
-    // 取得根目錄名稱（所有 file 的 webkitRelativePath 都以 rootDir/ 開頭）
     const rootDir = files[0].webkitRelativePath.split('/')[0];
 
-    // 收集直屬子目錄（depth = 1，即 path 結構為 root/subdir/...）
+    // ── 1. Collect direct subdirectories ──
     const subDirSet = new Set();
     for (const f of files) {
       const parts = f.webkitRelativePath.split('/');
-      // parts[0] = rootDir, parts[1] = 直屬子目錄或檔案
-      if (parts.length >= 3) {
-        // 有第三層以上 → parts[1] 是子目錄
-        subDirSet.add(parts[1]);
-      }
-      // 如果 parts.length === 2 → 是直屬檔案，不計入
+      if (parts.length >= 3) subDirSet.add(parts[1]);
     }
-
     folderNames = Array.from(subDirSet).sort((a, b) => a.localeCompare(b, 'zh-TW'));
 
-    // Render
-    if (folderNames.length === 0) {
-      resultsWrap.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><div>此目錄內沒有子目錄</div></div>`;
-    } else {
-      resultsWrap.innerHTML = folderNames.map((name, i) => `
-        <div class="folder-item" style="animation-delay:${Math.min(i * 0.025, 0.6)}s">
-          <span class="idx">${String(i + 1).padStart(2, '0')}</span>
-          <span class="folder-icon">📁</span>
-          <span>${name}</span>
-        </div>
-      `).join('');
-    }
+    // ── 2. Collect ALL files (recursive) ──
+    allFiles = files.map(f => {
+      const rel   = f.webkitRelativePath;           // root/a/b/file.txt
+      const parts = rel.split('/');
+      const name  = parts[parts.length - 1];
+      const dir   = parts.slice(1, parts.length - 1).join('/'); // relative dir without root
+      const ext   = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+      return { path: rel, name, dir, size: f.size, ext };
+    }).sort((a, b) => a.path.localeCompare(b.path));
+
+    renderFolders();
+    renderFiles(allFiles);
 
     statusBar.innerHTML = `
       <span>目錄：</span>
       <span class="tag" title="${rootDir}">${rootDir}</span>
-      <span style="margin-left:auto;color:var(--accent2)">✅ 找到 ${folderNames.length} 個子目錄</span>
+      <span style="margin-left:auto;color:var(--accent2)">
+        ✅ ${folderNames.length} 個子目錄 &nbsp;·&nbsp; ${allFiles.length} 個檔案
+      </span>
     `;
-    footer.textContent = `共 ${folderNames.length} 筆`;
 
-    exportBtn.classList.toggle('active', folderNames.length > 0);
+    const hasData = allFiles.length > 0 || folderNames.length > 0;
+    exportFoldersBtn.classList.toggle('active', folderNames.length > 0);
+    exportFilesBtn.classList.toggle('active', allFiles.length > 0);
     clearBtn.classList.add('active');
 
-    // 重置 input，讓同一目錄可重複選取
     folderInput.value = '';
   });
 
-  exportBtn.addEventListener('click', () => {
+  // ── Render folders ──
+  function renderFolders() {
+    folderCountEl.textContent = folderNames.length ? `(${folderNames.length})` : '';
+    if (!folderNames.length) {
+      foldersWrap.innerHTML = `<div class="empty-state"><div class="icon">🔍</div><div>此目錄內沒有子目錄</div></div>`;
+      folderFooter.textContent = '';
+      return;
+    }
+    foldersWrap.innerHTML = folderNames.map((name, i) => `
+      <div class="folder-item" style="animation-delay:${Math.min(i*0.02,0.5)}s">
+        <span class="idx">${String(i+1).padStart(2,'0')}</span>
+        <span>📁</span>
+        <span>${name}</span>
+      </div>
+    `).join('');
+    folderFooter.textContent = `共 ${folderNames.length} 個子目錄`;
+  }
+
+  // ── Render files ──
+  function renderFiles(list, keyword) {
+    fileCountEl.textContent = allFiles.length ? `(${allFiles.length})` : '';
+    if (!list.length) {
+      filesWrap.innerHTML = keyword
+        ? `<div class="empty-state"><div class="icon">🔍</div><div>沒有符合「${keyword}」的檔案</div></div>`
+        : `<div class="empty-state"><div class="icon">📄</div><div>尚未選擇目錄</div></div>`;
+      fileFooter.textContent = '';
+      return;
+    }
+
+    const header = `
+      <div class="list-header">
+        <span>#</span>
+        <span>路徑</span>
+        <span style="text-align:right">大小</span>
+        <span style="text-align:right">類型</span>
+      </div>`;
+
+    const rows = list.map((f, i) => {
+      const dirPart  = f.dir ? `<span class="dir-part">${highlight(f.dir, keyword)}/</span>` : '';
+      const namePart = highlight(f.name, keyword);
+      return `
+        <div class="file-item" style="animation-delay:${Math.min(i*0.01,0.4)}s">
+          <span class="idx">${String(i+1).padStart(3,'0')}</span>
+          <span class="path" title="${f.path}">${dirPart}${namePart}</span>
+          <span class="size">${fmtSize(f.size)}</span>
+          ${extBadge(f.ext)}
+        </div>`;
+    }).join('');
+
+    filesWrap.innerHTML = header + rows;
+    fileFooter.textContent = keyword
+      ? `符合 ${list.length} / 共 ${allFiles.length} 個檔案`
+      : `共 ${list.length} 個檔案`;
+  }
+
+  // ── Search ──
+  fileSearch.addEventListener('input', () => {
+    const kw = fileSearch.value.trim().toLowerCase();
+    if (!kw) { renderFiles(allFiles); return; }
+    const filtered = allFiles.filter(f => f.path.toLowerCase().includes(kw));
+    renderFiles(filtered, kw);
+  });
+
+  // ── Highlight keyword ──
+  function highlight(str, kw) {
+    if (!kw) return escHtml(str);
+    const idx = str.toLowerCase().indexOf(kw.toLowerCase());
+    if (idx < 0) return escHtml(str);
+    return escHtml(str.slice(0, idx))
+      + `<mark>${escHtml(str.slice(idx, idx + kw.length))}</mark>`
+      + escHtml(str.slice(idx + kw.length));
+  }
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── File size formatter ──
+  function fmtSize(bytes) {
+    if (bytes === 0) return '0 B';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+    return (bytes/1024/1024).toFixed(1) + ' MB';
+  }
+
+  // ── Ext badge ──
+  const EXT_COLORS = {
+    xlsx:'#1d6f42,#fff', xls:'#1d6f42,#fff',
+    csv:'#2ea44f,#fff',
+    pdf:'#e74c3c,#fff',
+    docx:'#2b5797,#fff', doc:'#2b5797,#fff',
+    pptx:'#d04423,#fff', ppt:'#d04423,#fff',
+    txt:'#8b949e,#0d1117',
+    jpg:'#9b59b6,#fff', jpeg:'#9b59b6,#fff', png:'#9b59b6,#fff', gif:'#9b59b6,#fff', bmp:'#9b59b6,#fff',
+    zip:'#f39c12,#0d1117', rar:'#f39c12,#0d1117', gz:'#f39c12,#0d1117',
+    py:'#3572a5,#fff', js:'#f1e05a,#0d1117', ts:'#3178c6,#fff',
+    html:'#e34c26,#fff', css:'#563d7c,#fff',
+    json:'#292929,#f0883e',
+  };
+  function extBadge(ext) {
+    if (!ext) return '<span></span>';
+    const colors = EXT_COLORS[ext] || '30363d,#8b949e';
+    const [bg, fg] = (EXT_COLORS[ext] || '#30363d,#8b949e').split(',');
+    return `<span class="ext-badge" style="background:${bg};color:${fg}">${escHtml(ext)}</span>`;
+  }
+
+  // ── Export folders ──
+  exportFoldersBtn.addEventListener('click', () => {
     if (!folderNames.length) return;
-    const blob = new Blob([folderNames.join('\n')], { type: 'text/plain;charset=utf-8' });
+    download('folder_name.txt', folderNames.join('\n'));
+  });
+
+  // ── Export files ──
+  exportFilesBtn.addEventListener('click', () => {
+    if (!allFiles.length) return;
+    // 匯出：相對路徑（去掉根目錄前綴）
+    const lines = allFiles.map(f => f.path.split('/').slice(1).join('/'));
+    download('file_list.txt', lines.join('\n'));
+  });
+
+  function download(filename, text) {
     const a = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(blob),
-      download: 'folder_name.txt'
+      href: URL.createObjectURL(new Blob([text], {type:'text/plain;charset=utf-8'})),
+      download: filename
     });
     a.click();
     URL.revokeObjectURL(a.href);
-  });
+  }
 
+  // ── Clear ──
   clearBtn.addEventListener('click', () => {
-    folderNames = [];
-    resultsWrap.innerHTML = `<div class="empty-state"><div class="icon">🗂️</div><div>尚未選擇目錄</div></div>`;
-    statusBar.innerHTML = `<span>等待選擇目錄…</span>`;
-    footer.textContent = '';
-    exportBtn.classList.remove('active');
+    folderNames = []; allFiles = [];
+    fileSearch.value = '';
+    foldersWrap.innerHTML  = `<div class="empty-state"><div class="icon">🗂️</div><div>尚未選擇目錄</div></div>`;
+    filesWrap.innerHTML    = `<div class="empty-state"><div class="icon">📄</div><div>尚未選擇目錄</div></div>`;
+    statusBar.innerHTML    = `<span>等待選擇目錄…</span>`;
+    folderFooter.textContent = fileFooter.textContent = '';
+    folderCountEl.textContent = fileCountEl.textContent = '';
+    exportFoldersBtn.classList.remove('active');
+    exportFilesBtn.classList.remove('active');
     clearBtn.classList.remove('active');
   });
 </script>
